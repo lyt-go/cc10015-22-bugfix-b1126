@@ -29,3 +29,6 @@ class EntryPayload(BaseModel):
 class ActionPayload(BaseModel):
     action: str
     remark: str | None = None
+    # 站位确认时船长出示的航次生效回执编号
+    receipt_no: str | None = None
+    extra: dict[str, Any] = Field(default_factory=dict)

@@ -17,7 +17,7 @@ class DivingOpsService(BaseModuleService):
     ACTION_RULES = {"确认下水": "已下水", "完成作业": "已完成", "中止潜水": "已中止"}
     NEGATIVE_ACTIONS = ["中止潜水"]
 
-    def run_action(self, entry_id: int, action: str) -> tuple[dict[str, Any] | None, str]:
+    def run_action(self, entry_id: int, action: str, context: dict[str, Any] | None = None) -> tuple[dict[str, Any] | None, str]:
         entry = store.find(self.MODULE, entry_id)
         if entry is None:
             return None, f"{self.ENTITY} {entry_id} 不存在或已归档"

@@ -17,7 +17,7 @@ class InstrumentCalibService(BaseModuleService):
     ACTION_RULES = {"执行校准": "已校准", "签署报告": "已签署", "停用仪器": "不合格"}
     NEGATIVE_ACTIONS = ["停用仪器"]
 
-    def run_action(self, entry_id: int, action: str) -> tuple[dict[str, Any] | None, str]:
+    def run_action(self, entry_id: int, action: str, context: dict[str, Any] | None = None) -> tuple[dict[str, Any] | None, str]:
         entry = store.find(self.MODULE, entry_id)
         if entry is None:
             return None, f"{self.ENTITY} {entry_id} 不存在或已归档"

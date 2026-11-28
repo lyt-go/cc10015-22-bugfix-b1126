@@ -17,7 +17,7 @@ class BioTrawlService(BaseModuleService):
     ACTION_RULES = {"开始作业": "已作业", "提交记录": "已记录", "完成分拣": "已分拣"}
     NEGATIVE_ACTIONS = []
 
-    def run_action(self, entry_id: int, action: str) -> tuple[dict[str, Any] | None, str]:
+    def run_action(self, entry_id: int, action: str, context: dict[str, Any] | None = None) -> tuple[dict[str, Any] | None, str]:
         entry = store.find(self.MODULE, entry_id)
         if entry is None:
             return None, f"{self.ENTITY} {entry_id} 不存在或已归档"

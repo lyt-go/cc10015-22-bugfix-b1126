@@ -17,7 +17,7 @@ class ResultsCompileService(BaseModuleService):
     ACTION_RULES = {"提交汇编": "已提交", "审核通过": "已审核", "退回补充": "需补充"}
     NEGATIVE_ACTIONS = ["退回补充"]
 
-    def run_action(self, entry_id: int, action: str) -> tuple[dict[str, Any] | None, str]:
+    def run_action(self, entry_id: int, action: str, context: dict[str, Any] | None = None) -> tuple[dict[str, Any] | None, str]:
         entry = store.find(self.MODULE, entry_id)
         if entry is None:
             return None, f"{self.ENTITY} {entry_id} 不存在或已归档"

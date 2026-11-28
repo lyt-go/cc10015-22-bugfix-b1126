@@ -17,7 +17,7 @@ class TrackRecordService(BaseModuleService):
     ACTION_RULES = {"记录航迹": "已记录", "验证航迹": "已验证", "废弃航迹": "已废弃"}
     NEGATIVE_ACTIONS = ["废弃航迹"]
 
-    def run_action(self, entry_id: int, action: str) -> tuple[dict[str, Any] | None, str]:
+    def run_action(self, entry_id: int, action: str, context: dict[str, Any] | None = None) -> tuple[dict[str, Any] | None, str]:
         entry = store.find(self.MODULE, entry_id)
         if entry is None:
             return None, f"{self.ENTITY} {entry_id} 不存在或已归档"

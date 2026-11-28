@@ -65,7 +65,7 @@ class BaseModuleService:
         rows.append(entry)
         return entry, []
 
-    def run_action(self, entry_id: int, action: str) -> tuple[dict[str, Any] | None, str]:
+    def run_action(self, entry_id: int, action: str, context: dict[str, Any] | None = None) -> tuple[dict[str, Any] | None, str]:
         """执行动作，包含幂等检查和跨模块前置/后置处理。"""
         entry = store.find(self.MODULE, entry_id)
         if entry is None:

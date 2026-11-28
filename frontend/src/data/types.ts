@@ -5,7 +5,11 @@ export type EntryRow = {
   status: string
   pending: boolean
   abnormal: boolean
-  [field: string]: string | number | boolean
+  review_round?: number
+  receipt_no?: string
+  active_receipt_no?: string | null
+  frozen_coordinates?: string
+  [field: string]: string | number | boolean | null | undefined
 }
 
 export type ModuleMeta = {

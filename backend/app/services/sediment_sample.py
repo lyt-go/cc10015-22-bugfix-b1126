@@ -17,7 +17,7 @@ class SedimentSampleService(BaseModuleService):
     ACTION_RULES = {"执行采样": "已采样", "登记样品": "已登记", "分割样品": "已分割"}
     NEGATIVE_ACTIONS = []
 
-    def run_action(self, entry_id: int, action: str) -> tuple[dict[str, Any] | None, str]:
+    def run_action(self, entry_id: int, action: str, context: dict[str, Any] | None = None) -> tuple[dict[str, Any] | None, str]:
         entry = store.find(self.MODULE, entry_id)
         if entry is None:
             return None, f"{self.ENTITY} {entry_id} 不存在或已归档"

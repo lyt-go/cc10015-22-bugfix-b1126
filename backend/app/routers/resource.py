@@ -23,6 +23,54 @@ def require_service(module: str):
     return service
 
 
+# ============================================================
+# 航次生效回执查询：固定路径，必须注册在 /{module} 动态路由之前
+# ============================================================
+@router.get("/plan-receipts/active")
+def active_plan_receipt() -> dict[str, Any]:
+    """返回当前唯一对外公布、可用于新布设的生效计划回执。"""
+    from app.services import plan_receipt
+
+    receipt = plan_receipt.get_active_receipt()
+    return {"receipt": receipt, "exists": receipt is not None}
+
+
+@router.get("/plan-receipts/{receipt_no}")
+def get_plan_receipt(receipt_no: str) -> dict[str, Any]:
+    """按回执编号查询航次生效回执及其计划/坐标快照。"""
+    from app.services import plan_receipt
+
+    receipt = plan_receipt.get_receipt(receipt_no)
+    if receipt is None:
+        raise HTTPException(status_code=404, detail=f"航次生效回执 {receipt_no} 不存在")
+    return receipt
+
+
+@router.get("/plan-receipts")
+def list_plan_receipts(
+    cruise_plan_id: int | None = Query(default=None),
+    cruise_code: str | None = Query(default=None),
+) -> dict[str, Any]:
+    """列出生效回执，可按航次计划书或航次编号过滤（两个航次分别核验）。"""
+    from app.services import plan_receipt
+
+    items = plan_receipt.list_receipts(
+        cruise_plan_id=cruise_plan_id, cruise_code=cruise_code
+    )
+    active = [r for r in items if r.get("status") == "生效中"]
+    return {"items": items, "total": len(items), "active_count": len(active)}
+
+
+@router.get("/station_deploy/{entry_id}/trace")
+def station_trace(entry_id: int) -> dict[str, Any]:
+    """站位回执追溯：归属哪轮计划、批准当时坐标、下一步是否需要重审。"""
+    svc = require_service("station_deploy")
+    trace = svc.get_station_trace(entry_id)
+    if trace is None:
+        raise HTTPException(status_code=404, detail=f"站位记录 {entry_id} 不存在或已归档")
+    return trace
+
+
 @router.get("/snapshot/{module}")
 def module_snapshot(module: str) -> dict[str, Any]:
     """返回模块跨域快照：本模块数据 + 关联模块状态。"""
@@ -32,12 +80,23 @@ def module_snapshot(module: str) -> dict[str, Any]:
     # 跨模块关联数据
     cross: dict[str, Any] = {}
     if module == "station_deploy":
+        from app.services import plan_receipt
         cruise_plan_rows = store.rows("cruise_plan")
         approved = any(r.get("status") == "已批准" for r in cruise_plan_rows)
         weather_rows = store.rows("weather_obs")
         severe = any(r.get("status") == "恶劣海况" for r in weather_rows)
+        active_receipt = plan_receipt.get_active_receipt()
         cross["cruise_plan_approved"] = approved
         cross["severe_weather"] = severe
+        cross["active_receipt_no"] = (
+            active_receipt.get("receipt_no") if active_receipt else None
+        )
+        cross["active_receipt_round"] = (
+            active_receipt.get("review_round") if active_receipt else None
+        )
+        cross["active_receipt_cruise"] = (
+            active_receipt.get("cruise_code") if active_receipt else None
+        )
     elif module == "sampling_record":
         registry_rows = store.rows("sample_registry")
         checked_in = sum(1 for r in registry_rows if r.get("status") == "已入库")
@@ -106,11 +165,20 @@ def module_snapshot(module: str) -> dict[str, Any]:
         hydro_linked = sum(1 for r in store.rows("data_qc") if r.get("triggered_by") == "hydro_measure")
         cross["triggered_by_hydro"] = hydro_linked
     elif module == "cruise_plan":
+        from app.services import plan_receipt
         station_rows = store.rows("station_deploy")
         plan_changed = sum(1 for r in station_rows if r.get("plan_changed"))
         cross["plan_changed"] = plan_changed
         results_rows = store.rows("results_compile")
         cross["total_results"] = len(results_rows)
+        active_receipt = plan_receipt.get_active_receipt()
+        cross["active_receipt_no"] = (
+            active_receipt.get("receipt_no") if active_receipt else None
+        )
+        cross["active_receipt_round"] = (
+            active_receipt.get("review_round") if active_receipt else None
+        )
+        cross["receipt_total"] = len(plan_receipt.list_receipts())
     
     base["cross_reference"] = cross
     return base
@@ -213,5 +281,8 @@ def create_entry(module: str, payload: EntryPayload) -> ActionResult:
 @router.post("/{module}/{entry_id}/actions", response_model=ActionResult)
 def run_action(module: str, entry_id: int, payload: ActionPayload) -> ActionResult:
     service = require_service(module)
-    entry, message = service.run_action(entry_id, payload.action.strip())
+    context = {"receipt_no": payload.receipt_no, **payload.extra}
+    entry, message = service.run_action(
+        entry_id, payload.action.strip(), context=context
+    )
     return ActionResult(ok=entry is not None, message=message, entry=entry)
